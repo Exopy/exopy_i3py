@@ -7,7 +7,9 @@ import os.path
 import sys
 
 sys.path.insert(0, os.path.abspath('.'))
-from exopy.version import __version__
+from exopy_pulses.version import __version__
+
+PROJECT_NAME = 'exopy_i3py'
 
 
 def long_description():
@@ -19,14 +21,14 @@ def long_description():
 
 
 setup(
-    name='exopy',
-    description='Experiment control application',
+    name=PROJECT_NAME,
+    description='ExopyI3py plugin package',
     version=__version__,
     long_description=long_description(),
-    author='Exopy Developers (see AUTHORS)',
+    author='see AUTHORS',
     author_email='m.dartiailh@gmail.com',
-    url='http://github.com/exopy/exopy',
-    download_url='http://github.com/exopy/exopy/tarball/master',
+    url='https://github.com/exopy/exopy_pulses',
+    download_url='https://github.com/exopy/exopy_pulses/tarball/master',
     keywords='experiment automation GUI',
     license='BSD',
     classifiers=[
@@ -36,17 +38,14 @@ setup(
         'Operating System :: OS Independent',
         'Topic :: Scientific/Engineering :: Physics',
         'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.6'
         ],
     zip_safe=False,
     packages=find_packages(exclude=['tests', 'tests.*']),
-    package_data={'': ['*.enaml', '*.txt']},
-    requires=['pyqt5', 'atom', 'enaml', 'kiwisolver',
-              'configobj', 'watchdog', 'setuptools', 'qtawesome',
-              'numpy'],
-    setup_requires=['setuptools'],
-    install_requires=['atom>=0.4.1', 'enaml>=0.10.2',
-                      'kiwisolver>=1.0.0', 'configobj',
-                      'watchdog', 'qtawesome', 'numpy'],
-    entry_points={'gui_scripts': 'exopy = exopy.__main__:main'},
+    package_data={'': ['*.enaml']},
+    requires=['exopy', 'numpy'],
+    install_requires=['exopy', 'numpy'],
+    entry_points={
+        'exopy_package_extension':
+        'exopy_i3py = %s:list_manifests' % PROJECT_NAME}
 )

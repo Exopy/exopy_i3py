@@ -1,0 +1,18 @@
+# -*- coding: utf-8 -*-
+# -----------------------------------------------------------------------------
+# Copyright 2018 by ExopyI3py Authors, see AUTHORS for more details.
+#
+# Distributed under the terms of the BSD license.
+#
+# The full license is in the file LICENCE, distributed with this software.
+# -----------------------------------------------------------------------------
+"""Manifest registering the dedicated tasks and the extension to those tasks.
+
+"""
+from enaml.workbench.api import Manifest
+
+
+enamldef I3pyTaskManifest(Manifest):
+    """
+    """
+    pass
