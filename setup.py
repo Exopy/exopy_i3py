@@ -27,8 +27,8 @@ setup(
     long_description=long_description(),
     author='see AUTHORS',
     author_email='m.dartiailh@gmail.com',
-    url='https://github.com/exopy/exopy_pulses',
-    download_url='https://github.com/exopy/exopy_pulses/tarball/master',
+    url='https://github.com/exopy/exopy_i3py',
+    download_url='https://github.com/exopy/exopy_i3py/tarball/master',
     keywords='experiment automation GUI',
     license='BSD',
     classifiers=[
@@ -37,14 +37,13 @@ setup(
         'Natural Language :: English',
         'Operating System :: OS Independent',
         'Topic :: Scientific/Engineering :: Physics',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6'
         ],
     zip_safe=False,
     packages=find_packages(exclude=['tests', 'tests.*']),
     package_data={'': ['*.enaml']},
-    requires=['exopy', 'numpy'],
-    install_requires=['exopy', 'numpy'],
+    requires=['exopy', 'i3py'],
+    install_requires=['exopy', 'i3py'],
     entry_points={
         'exopy_package_extension':
         'exopy_i3py = %s:list_manifests' % PROJECT_NAME}

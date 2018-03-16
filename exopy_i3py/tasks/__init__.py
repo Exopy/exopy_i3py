@@ -6,6 +6,6 @@
 #
 # The full license is in the file LICENCE, distributed with this software.
 # -----------------------------------------------------------------------------
-"""*Tasks tool allowing for seemless integration of I3py drivers.
+"""Tasks tool allowing for seemless integration of I3py drivers.
 
 """

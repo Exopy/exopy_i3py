@@ -12,6 +12,10 @@
 from enaml.workbench.api import Manifest
 
 
+# Register instructions + fields extension points
+# Register builtin instructions and fields
+# egister custom dependencies handlers for instructions
+
 enamldef I3pyTaskManifest(Manifest):
     """
     """

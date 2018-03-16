@@ -9,3 +9,5 @@
 """Base class for tasks needing to access an instrument.
 
 """
+
+# Handle instructions and fields gathering and queries

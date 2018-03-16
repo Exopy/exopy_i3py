@@ -9,171 +9,13 @@
 """Task allowing to access any driver Feature/Action of an I3py driver.
 
 """
-from collections import OrderedDict
-
-from atom.api import (Typed, List, Signal, Str, Callable)
+from atom.api import List, Signal
 
 from exopy.tasks.api import InstrumentTask
-from exopy.utils.atom_util import (HasPrefsAtom, ordered_dict_to_pref,
-                                   ordered_dict_from_pref)
+from exopy.utils.container_change import ContainerChange
+from exopy.utils.atom_util import update_members_from_preferences
 
-
-class BaseInstruction(HasPrefsAtom):
-    """Base class storing an operation to perform on a driver.
-
-    """
-    #: Id of the instruction. Will be used to store the result of the
-    #: instruction in the database if meaningful.
-    id = Str().tag(pref=True)
-
-    #: Path pointing to the attribute that should be manipulated (get/set/call)
-    #: Should start by "driver."
-    path = Str().tag(pref=True)
-
-    #: Channel ids that should be inserted in the path to access the proper
-    #: attribute.
-    ch_ids = Typed(OrderedDict, ()).tag(pref=(ordered_dict_to_pref,
-                                              ordered_dict_from_pref))
-
-    def prepare(self):
-        """Prepare the instruction for execution.
-
-        Called once in the lifetime, before execute.
-
-        """
-        raise NotImplementedError
-
-    def execute(self, task, driver):
-        """Execute the instruction on the provided driver.
-
-        """
-        raise NotImplementedError
-
-    def get_database_names(self):
-        """Get the database names used by the instruction.
-
-        """
-        return (self.id,)
-
-
-class GetInstruction(BaseInstruction):
-    """Read the value of an instrument feature and store it in the database.
-
-    """
-    def prepare(self):
-        """Build the callable accessing driver Feature.
-
-        """
-        source = (
-            "def _get_(driver, **ch_ids):"
-            "    return {path}")
-        local = {}
-        exec(source.format(', '.join(self.ch_ids), self.path), local)
-        self._getter = local['_get_']
-
-    def execute(self, task, driver):
-        """Get the value of the Feature and store it in the database.
-
-        """
-        ch_ids = {k: task.format_and_eval_string(v)
-                  for k, v in self.ch_ids.items()}
-        task.write_in_database(self.id, self._getter(driver, **ch_ids))
-
-    # --- Private API ---------------------------------------------------------
-
-    #: Getter function streamlining the process of accessing to the driver
-    #: Feature.
-    _getter = Callable()
-
-
-class SetInstruction(BaseInstruction):
-    """Set the value of an instrument feature.
-
-    """
-    #: Value that should be set when executing the instruction.
-    value = Str().tag(pref=True)
-
-    def prepare(self):
-        """Build the callable accessing driver Feature.
-
-        """
-        source = (
-            "def _set_(driver, value, **ch_ids):"
-            "    {path} = value")
-        local = {}
-        exec(source.format(', '.join(self.ch_ids), self.path), local)
-        self._setter = local['_set_']
-
-    def execute(self, task, driver):
-        """Get the value of the Feature and store it in the database.
-
-        """
-        ch_ids = {k: task.format_and_eval_string(v)
-                  for k, v in self.ch_ids.items()}
-        value = task.format_and_eval_string(self.value)
-        task.write_in_database(self.id, self._setter(driver, value, **ch_ids))
-
-    # --- Private API ---------------------------------------------------------
-
-    #: Setter function streamlining the process of accessing to the driver
-    #: Feature.
-    _setter = Callable()
-
-
-# XXX add a smooth set instruction
-
-
-class CallInstruction(BaseInstruction):
-    """Call an instrument action and store the result in the database.
-
-    """
-    #: List of names to in which to store the return value of the calls.
-    #: Their number should match the number of returned values.
-    ret_names = List().tag(pref=True)
-
-    #: Arguments to pass to the Action when calling it
-    action_kwargs = Typed(OrderedDict, ()).tag(pref=(ordered_dict_to_pref,
-                                                     ordered_dict_from_pref))
-
-    def prepare(self):
-        """Build the callable accessing driver Feature.
-
-        """
-        source = (
-            "def _call_(driver, kwargs, **ch_ids):"
-            "    return {path}(**kwargs)")
-        local = {}
-        exec(source.format(', '.join(self.ch_ids), self.path), local)
-        self._caller = local['_call_']
-
-    def execute(self, task, driver):
-        """Get the value of the Feature and store it in the database.
-
-        """
-        ch_ids = {k: task.format_and_eval_string(v)
-                  for k, v in self.ch_ids.items()}
-        action_kwargs = {k: task.format_and_eval_string(v)
-                         for k, v in self.action_kwargs.items()}
-        res = self._caller(driver, action_kwargs, **ch_ids)
-        if self.ret_names:
-            for i, name in enumerate(self.get_names):
-                task.write_in_database(name, res[i])
-        else:
-            task.write_in_database(self.id, res)
-
-    def get_names(self):
-        """If return names are provided indicate they are used.
-
-        """
-        if self.ret_names:
-            return [self.id + '_' + rn for rn in self.ret_names]
-        else:
-            return (self.id,)
-
-    # --- Private API ---------------------------------------------------------
-
-    #: Caller function streamlining the process of calling a driver Action.
-    _setter = Callable()
+from ..instructions.base_instructions import DEP_TYPE
 
 
 class GenericI3pyTask(InstrumentTask):
@@ -189,10 +31,12 @@ class GenericI3pyTask(InstrumentTask):
     instruction_changed = Signal()
 
     def check(self, *args, **kwargs):
-        """Check that all instructions all properly configured.
+        """Check that all instructions are properly configured.
 
 
         """
+        # XXX need to infer as much as possible from the driver to set
+        # reasonable values in the database
         pass
 
     def perform(self):
@@ -202,17 +46,170 @@ class GenericI3pyTask(InstrumentTask):
         for i in self.instructions:
             i.execute(self, self.driver)
 
-    def add_instruction(self, instr):
-        """
-        """
-        pass
+    def add_instruction(self, instruction, index):
+        """Add an instruction at the given index.
 
-    def remove_instruction(self, instr_index):
+        Parameters
+        ----------
+        index : int
+            Index at which to insert the new child task.
+
+        instruction : BaseInstruction
+            Instruction to insert in the list of instructions.
+
         """
+        self.instructions.insert(index, instruction)
+
+        # In the absence of a root task do nothing else than inserting the
+        # child.
+        if self.has_root:
+
+            # Register the new entries in the database
+            db_entries = self.database_entries.copy()
+            db_entries.update(instruction.database_entries)
+            self.database_entries = db_entries
+            instruction.observe('database_entries',
+                                self._react_to_instr_database_entries_change)
+
+            # Register anew preferences to keep the right ordering for the
+            # instructions
+            self.register_preferences()
+
+            change = ContainerChange(obj=self, name='instructions',
+                                     added=[(index, instruction)])
+            self.instruction_changed(change)
+
+    def remove_instruction(self, index):
+        """Remove an instruction from the instructions list.
+
+        Parameters
+        ----------
+        index : int
+            Index at which the instruction to remove is located.
+
         """
-        pass
+        instruction = self.instructions.pop(index)
+
+        # Cleanup database
+        db_entries = self.database_entries.copy()
+        for k in db_entries:
+            if k in instruction.database_entries:
+                del db_entries[k]
+        self.database_entries = db_entries
+        instruction.unobserve('database_entries',
+                              self._react_to_instr_database_entries_change)
+
+        # Update preferences
+        self.register_preferences()
+
+        change = ContainerChange(obj=self, name='instructions',
+                                 removed=[(index, instruction)])
+        self.instruction_changed(change)
 
     def move_instruction(self, old, new):
+        """Move an instruction.
+
+        Parameters
+        ----------
+        old : int
+            Index at which the instruction to move is currently located.
+
+        new : BaseTask
+            Index at which to insert the instruction.
+
         """
+        instruction = self.instructions.pop(old)
+        self.instructions.insert(new, instruction)
+
+        # In the absence of a root task do nothing else than moving the
+        # child.
+        if self.has_root:
+            # Register anew preferences to keep the right ordering for the
+            # children
+            self.register_preferences()
+
+            change = ContainerChange(obj=self, name='instructions',
+                                     moved=[(old, new, instruction)])
+            self.instruction_changed(change)
+
+    def register_preferences(self):
+        """Create the task entries in the preferences object.
+
         """
-        pass
+        super(GenericI3pyTask, self).register_preferences()
+
+        # Register the instructions
+        for i, instr in enumerate(self.instructions):
+            child_id = 'instruction_{}'.format(i)
+            self.preferences[child_id] = instr.preferences_from_members()
+
+    @classmethod
+    def build_from_config(cls, config, dependencies):
+        """Create a new instance using the provided infos for initialisation.
+
+        Parameters
+        ----------
+        config : dict(str)
+            Dictionary holding the new values to give to the members in string
+            format, or dictionnary like for instance with prefs.
+
+        dependencies : dict
+            Dictionary holding the necessary classes needed when rebuilding..
+
+        """
+        task = cls()
+        update_members_from_preferences(task, config)
+
+        # Collect and build the instructions
+        i = 0
+        pref = 'instruction_{}'
+        instructions = []
+        while True:
+            instr_name = pref.format(i)
+            if instr_name not in config:
+                break
+            instr_config = config[instr_name]
+            instr_class_name = instr_config.pop('instruction_id')
+            instr_cls = dependencies[DEP_TYPE][instr_class_name]
+            instr = instr_cls.build_from_config(instr_config,
+                                                dependencies)
+            instructions.append(instr)
+            i += 1
+
+        task.instructions = instructions
+
+        return task
+
+    def traverse(self, depth=-1):
+        """Yield a task and all of its components.
+
+        The base implementation simply yields the task itself.
+
+        Parameters
+        ----------
+        depth : int
+            How deep should we explore the tree of tasks. When this number
+            reaches zero deeper children should not be explored but simply
+            yielded.
+
+        """
+        yield self
+        for instr in self.instructions:
+            yield instr
+
+    # =========================================================================
+    # --- Private API ---------------------------------------------------------
+    # =========================================================================
+
+    def _react_to_instr_database_entries_change(self, change):
+        """Update the database entries whenever an instruction modify its used
+        names.
+
+        """
+        db_entries = self.database_entries.copy()
+        if 'old_value' in change:
+            for k in db_entries:
+                if k in change['object'].database_entries:
+                    del db_entries[k]
+        db_entries.update(change['value'])
+        self.database_entries = db_entries
