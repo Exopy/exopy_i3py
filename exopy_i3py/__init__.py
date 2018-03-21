@@ -11,8 +11,13 @@
 """
 import enaml
 
-# tasks+instruments manifest
+
 def list_manifests():
+    """List all the manifest contributed by the package.
+
     """
-    """
-    pass
+    with enaml.imports():
+        from .instruments.manifest import I3pyInstrManifest
+        from .tasks.manifest import I3pyTaskManifest
+
+    return [I3pyInstrManifest, I3pyTaskManifest]
