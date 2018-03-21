@@ -9,10 +9,65 @@
 """Manifest registering all I3py drivers and related tools.
 
 """
-from enaml.workbench.api import Manifest
+import enaml
+from enaml.core.api import Include
+from enaml.workbench.api import Manifest, Extension
+
+from exopy.instruments.api import Driver, Drivers, Starter
+
+from .drivers.i3py_driver_decl import I3pyVisaDriver
+from .starters.i3py_starters import I3pyStarter, I3pyVisaStarter
 
 
 enamldef I3pyInstrManifest(Manifest):
+    """Manifest registering the supported I3py instruments.
+
     """
-    """
-    pass
+    id = 'exopy_i3py.instruments'
+
+    Extension:
+        id = 'starters'
+        point = 'exopy.instruments.starters'
+        Starter:
+            id = 'exopy_i3py.i3py_starter'
+            description = 'Generic driver for I3py drivers.'
+            starter = I3pyStarter()
+
+         Starter:
+            id = 'exopy_i3py.i3py_visa_starter'
+            description = 'Generic driver for I3py VISA drivers.'
+            starter = I3pyVisaStarter()
+
+    Extension:
+        id = 'settings'
+        point = 'exopy.instruments.settings'
+        Settings:
+            id = 'exopy_i3py.visa_settings'
+            description = ('Settings allowin to select the PyVISA backend to '
+                           'use when connecting to the instrument.')
+            new => (workbench, default, read_only):
+                with enaml.imports():
+                    from .settings.visa_settings import I3pyVisaSettings
+                widget = I3pyVisaSettings(declaration=self, **defaults)
+                widget.read_only = read_only
+                return widget
+
+    Extension:
+        id = 'drivers'
+        point = 'exopy.instruments.drivers'
+
+        # Non-Visa drivers
+        Drivers:
+            architecture = 'i3py'
+            starter = 'exopy_i3py.i3py_starter'
+            path = 'i3py.drivers'
+
+        # Visa drivers
+        # Those drivers should be registered using the I3pyVisaDriver
+        # declarator that will use the INTERFACES declared on the driver class
+        # to fill in the connections.
+        Drivers:
+            architecture = 'i3py'
+            starter = 'exopy_i3py.i3py_visa_starter'
+            path = 'i3py.drivers'
+            settings = {'exopy_i3py.visa_settings': {'pyvisa_backend': '@ni'}}

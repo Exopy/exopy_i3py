@@ -6,6 +6,6 @@
 #
 # The full license is in the file LICENCE, distributed with this software.
 # -----------------------------------------------------------------------------
-"""Starter for I3py drivers.
+"""Package for the settings for I3py drivers.
 
 """
