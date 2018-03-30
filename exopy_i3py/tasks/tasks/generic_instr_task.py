@@ -11,7 +11,7 @@
 """
 from atom.api import List, Signal
 
-from exopy.tasks.api import InstrumentTask
+from exopy.tasks.api import InstrumentTask, DRIVER_DEPENDENCY_ID
 from exopy.utils.container_change import ContainerChange
 from exopy.utils.atom_util import update_members_from_preferences
 
@@ -33,11 +33,25 @@ class GenericI3pyTask(InstrumentTask):
     def check(self, *args, **kwargs):
         """Check that all instructions are properly configured.
 
-
         """
-        # XXX need to infer as much as possible from the driver to set
-        # reasonable values in the database
-        pass
+        test, traceback = super().check(*args, **kwargs)
+        if not test:
+            return test, traceback
+
+        err_path = self.get_error_path()
+        run_time = self.root.run_time
+        _, d_id, _, _ = self.selected_instrument
+
+        # This is safe since the InstrumentTask checks passed
+        d_cls, _ = run_time[DRIVER_DEPENDENCY_ID][d_id]
+
+        for instr in self.instructions:
+            test, value_or_error = instr.check(self, d_cls)
+            if test:
+                for entry_id, value in value_or_error.items():
+                    self.write_in_database(entry_id, value)
+            else:
+                traceback[err_path + '-' + instr.id] = value_or_error
 
     def perform(self):
         """Call all instructions in order.
