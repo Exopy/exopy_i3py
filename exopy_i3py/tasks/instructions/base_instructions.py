@@ -9,14 +9,16 @@
 """Basic instruction used to define the operations to execute on a driver.
 
 """
+from traceback import format_exc
 from collections import OrderedDict
 
 from atom.api import (Typed, List, Dict, Str, Callable, Constant)
 
 from exopy.utils.atom_util import (HasPrefsAtom, ordered_dict_to_pref,
-                                   ordered_dict_from_pref,
-                                   update_members_from_preferences)
+                                   ordered_dict_from_pref)
 
+from ..hinters.base_hinters import (BaseInstructionReturnHinter,
+                                    DEP_TYPE as HINTER_DEP_TYPE)
 
 #: Dependency type id
 DEP_TYPE = 'exopy_i3py.tasks.instructions'
@@ -45,8 +47,63 @@ class BaseInstruction(HasPrefsAtom):
     ch_ids = Typed(OrderedDict, ()).tag(pref=(ordered_dict_to_pref,
                                               ordered_dict_from_pref))
 
+    #: Hinter responsible for providing a reasonable value for the database
+    #: during the checks.
+    hinter = Typed(BaseInstructionReturnHinter)
+
     #: Names under which the instruction ouput should be stored in the database
     database_entries = Dict()
+
+    def check(self, task, driver_cls):
+        """Ensure that the path is meaningful and check the hinter.
+
+        Parameters
+        ----------
+        task : exopy_i3py.tasks.tasks.generic_instr_task.GenericI3pyTask
+            Task to which this instruction si attached.
+
+        driver_cls : type
+            Driver class with which teh instruction will have to work.
+
+        Returns
+        -------
+        test : bool
+            Whether or not te checks are considered successful
+
+        value_or_errors : dict or str
+            Dictionary of values to store in the database if the checks
+            succeeded or an error message if something went wrong.
+
+        """
+        dr = driver_cls
+        valid_path = driver_cls.__name__
+        for i, part in enumerate(path.split('.')):
+            if i == 0 and part != 'driver':
+                return (False,
+                        'The path of the instruction should start by "driver"')
+            if '[' in part:
+                if ']' not in part:
+                    return False, 'Malformed channel access: %s' % part
+                ch_id = part.split('[')[1].split(']')[0]
+                if ch_id not in self.ch_ids:
+                    return (False,
+                            'Unknown channel id %s, know ids are %s' %
+                            (ch_id, self.ch_ids))
+                part = part.split('[')[0]
+
+            if not hasattr(dr, part):
+                return False, '%s has no attribute %s' % (valid_path, part)
+
+            dr = getattr(dr, part)
+
+        try:
+            value = self.hinter.provide_hint(self, driver_cls, task)
+        except Exception:
+            return (False,
+                    'Failed to generate database value hint:\n%s' %
+                    format_exc())
+
+        return True, value
 
     def prepare(self):
         """Prepare the instruction for execution.
@@ -67,7 +124,11 @@ class BaseInstruction(HasPrefsAtom):
 
         """
         inst = cls()
-        update_members_from_preferences(inst, config)
+        inst.update_members_from_preferences(config)
+        hinter_id = config['hinter']['hinter_id']
+        hinter_cls = dependencies[HINTER_DEP_TYPE][hinter_id]
+        inst.hinter = hinter_cls.build_from_config(config['hinter'],
+                                                   dependencies)
         return inst
 
     # --- Private API ---------------------------------------------------------
