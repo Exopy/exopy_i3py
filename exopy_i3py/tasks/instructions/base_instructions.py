@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # -----------------------------------------------------------------------------
-# Copyright 2015-2018 by Exopy Authors, see AUTHORS for more details.
+# Copyright 2018 by Exopy-I3py Authors, see AUTHORS for more details.
 #
 # Distributed under the terms of the BSD license.
 #
@@ -60,10 +60,10 @@ class BaseInstruction(HasPrefsAtom):
         Parameters
         ----------
         task : exopy_i3py.tasks.tasks.generic_instr_task.GenericI3pyTask
-            Task to which this instruction si attached.
+            Task to which this instruction is attached.
 
         driver_cls : type
-            Driver class with which teh instruction will have to work.
+            Driver class with which the instruction will have to work.
 
         Returns
         -------
@@ -77,7 +77,7 @@ class BaseInstruction(HasPrefsAtom):
         """
         dr = driver_cls
         valid_path = driver_cls.__name__
-        for i, part in enumerate(path.split('.')):
+        for i, part in enumerate(self.path.split('.')):
             if i == 0 and part != 'driver':
                 return (False,
                         'The path of the instruction should start by "driver"')
@@ -174,7 +174,7 @@ class GetInstruction(BaseInstruction):
         """Default database names used by the instruction.
 
         """
-        return dict(self.id=1.0)
+        return {self.id: 1.0}
 
 
 class SetInstruction(BaseInstruction):
@@ -258,10 +258,10 @@ class CallInstruction(BaseInstruction):
         if new:
             self.database_entries = {self.id + '_' + rn: 1.0 for rn in new}
         else:
-            return dict(self.id=1.0)
+            return {self.id: 1.0}
 
     def _default_database_entries(self):
         """Default database names used by the instruction.
 
         """
-        return dict(self.id=1.0)
+        return {self.id: 1.0}

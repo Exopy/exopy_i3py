@@ -14,7 +14,8 @@ not do some crazy modification to the return value)
 """
 from .base_hinters import BaseInstructionReturnHinter
 
-# XXX implement
+
+# TODO implement
 class FeatureHinter():
     """Base Feature hinter guessing what it can from the creation kwargs.
 
@@ -53,8 +54,8 @@ class RegisterHinter():
     pass
 
 
-# XXX this one is more work bacause it has a nested hinter.
-# XXX requires also a more complex selection logic
+# TODO this one is more work bacause it has a nested hinter.
+# TODO requires also a more complex selection logic
 class AliasHinter():
     """Hinter specialized in handling Alias features.
 

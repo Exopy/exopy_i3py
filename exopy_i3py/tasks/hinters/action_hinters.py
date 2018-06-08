@@ -15,7 +15,8 @@ output.
 """
 from .base_hinters import BaseInstructionReturnHinter
 
-# XXX implement
+
+# TODO implement
 class ActionSignatureHinter(BaseInstructionReturnHinter):
     """Hinter relying on the Action signature nd modifiers to make a guess.
 
